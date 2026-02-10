@@ -20,3 +20,21 @@ class OracleConnection:
         except oracledb.Error as e:
             st.error(f"Error de conexión: {e}")
             return None
+    
+    def close_connection(self, conn):
+        if conn:
+            try:
+                conn.close()
+                st.success("Conexión cerrada exitosamente.")
+            except oracledb.Error as e:
+                st.error(f"Error al cerrar la conexión: {e}")
+
+    def execute_query(self, conn, query):
+        try:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+            return results
+        except oracledb.Error as e:
+            st.error(f"Error al ejecutar la consulta: {e}")
+            return None
