@@ -5,7 +5,7 @@ from turtle import left
 from numpy import outer
 
 
-def query_por_fechas(fecha_inicio=None, fecha_fin=None, tabla=None, columna_fecha='fecha'):
+def query_por_fechas_identificado(fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, tabla=None, columna_fecha='fecha'):
     """
     Genera una consulta SQL filtrando por rango de fechas.
     
@@ -15,6 +15,10 @@ def query_por_fechas(fecha_inicio=None, fecha_fin=None, tabla=None, columna_fech
         Fecha de inicio del rango (formato: YYYY-MM-DD o datetime object)
     fecha_fin : datetime o str
         Fecha final del rango (formato: YYYY-MM-DD o datetime object)
+    hora_inicio : time o str
+        Hora de inicio del rango (formato: HH:MM o time object)
+    hora_fin : time o str
+        Hora final del rango (formato: HH:MM o time object)
     tabla : str
         Nombre de la tabla a consultar
     columna_fecha : str
@@ -30,17 +34,18 @@ def query_por_fechas(fecha_inicio=None, fecha_fin=None, tabla=None, columna_fech
     >>> query = query_por_fechas('2025-01-01', '2025-12-31', 'ventas', 'fecha_venta')
     >>> print(query)
     """
+    print(f"Generando consulta SQL para fechas: {fecha_inicio} - {fecha_fin} y horas: {hora_inicio} - {hora_fin}")
     if isinstance(fecha_inicio, datetime):
-        fecha_inicio = fecha_inicio.strftime('%Y-%m-%d')
+        fecha_inicio = fecha_inicio.strftime("%d/%m/%Y")
     
     if isinstance(fecha_fin, datetime):
-        fecha_fin = fecha_fin.strftime('%Y-%m-%d')
+        fecha_fin = fecha_fin.strftime("%d/%m/%Y")
     
     # query = f"""
     # SELECT * 
     # FROM {tabla}
-    # WHERE {columna_fecha} >= TO_DATE('{fecha_inicio}', 'YYYY-MM-DD')
-    # AND {columna_fecha} <= TO_DATE('{fecha_fin}', 'YYYY-MM-DD')
+    # WHERE {columna_fecha} >= TO_DATE('{fecha_inicio}', 'DD/MM/YYYY')
+    # AND {columna_fecha} <= TO_DATE('{fecha_fin}', 'DD/MM/YYYY')
     # ORDER BY {columna_fecha}
     # """
     
@@ -113,14 +118,52 @@ def query_por_fechas(fecha_inicio=None, fecha_fin=None, tabla=None, columna_fech
         cbResultadoAviso cbresultad14_ 
             on Incidencia.cbResultadoAviso=cbresultad14_.id 
         where
-        (
-            afectado4_.relacionafectado_id=26801
-            and (
+        (            
             upper(hechoview2_.descripcion) like '%21-VERTIDO ILEGAL%'
         )
-        and Incidencia.fechaAlta>to_date('01/01/2025 23:59:59', 'DD/MM/YYYY HH24:MI:SS') 
-        and Incidencia.fechaAlta<=to_date('10/02/2026 23:59:59', 'DD/MM/YYYY HH24:MI:SS')
+        and Incidencia.fechaAlta>to_date('{fecha_inicio} {hora_inicio}', 'DD/MM/YYYY HH24:MI:SS') 
+        and Incidencia.fechaAlta<=to_date('{fecha_fin} {hora_fin}', 'DD/MM/YYYY HH24:MI:SS')
         )
     """
 
+    return query
+
+
+def query_por_fechas(fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, tabla=None, columna_fecha='fecha'):
+    query = f"""                
+        select
+            Incidencia.num_Incidencia as numIncidencia,
+            Incidencia.ano_Incidencia as anoIncidencia,
+            to_char(Incidencia.fechaAlta,
+            'DD/MM/YYYY') as fechaAlta,
+            to_char(Incidencia.fechaAlta,
+            'HH24:MI') as horaAlta,
+            hechoview2_.descripcion as descripcion,
+            hechoview2_.descripcion as hecho,
+            cbmotivofi3_.nombre as cbMotivoFinalizacion,
+            cbresultad4_.nombre as cbResultadoAviso 
+            
+            from
+                Incidencia Incidencia 
+            left outer join
+                Hecho hecho1_ 
+                    on Incidencia.hecho_id=hecho1_.id 
+            left outer join
+                HechoView hechoview2_ 
+                    on hecho1_.id=hechoview2_.id 
+            left outer join
+                cbMotivoFinalizacion cbmotivofi3_ 
+                    on Incidencia.cbMotivoFinalizacion=cbmotivofi3_.id 
+            left outer join
+                cbResultadoAviso cbresultad4_ 
+                    on Incidencia.cbResultadoAviso=cbresultad4_.id 
+                            where
+                    (
+                        
+                        upper(hechoview2_.descripcion) like '%21-VERTIDO ILEGAL%' 
+                        
+                        and Incidencia.fechaAlta>to_date('{fecha_inicio} {hora_inicio}', 'DD/MM/YYYY HH24:MI:SS') 
+                        and Incidencia.fechaAlta<=to_date('{fecha_fin} {hora_fin}', 'DD/MM/YYYY HH24:MI:SS')
+                    )
+            """
     return query
