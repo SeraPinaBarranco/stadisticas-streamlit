@@ -1,7 +1,34 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 from model import OracleConnection
 from consultas import query_por_fechas
+import folium
+
+
+def create_incidents_map(df):
+    """Create a folium map with incident locations."""
+    # Filter out rows with missing coordinates
+    #Centra el mapa en las coordenadas 40.326366, -3.768147    
+    df_map = df.dropna(subset=['coordX', 'coordY'])
+    
+    if df_map.empty:
+        return None
+    
+    # Create map centered on the mean coordinates
+    center_lat = df_map['coordY'].mean()
+    center_lon = df_map['coordX'].mean()
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+    
+    # Add markers for each incident
+    for idx, row in df_map.iterrows():
+        folium.Marker(
+            location=[row['coordY'], row['coordX']],
+            popup=f"{row['lugar']}<br>{row['hecho']}",
+            tooltip=row['motivo']
+        ).add_to(m)
+    
+    return m
 
 
 def main():
@@ -40,31 +67,46 @@ def main():
 
     result = oracle_conn.execute_query(conn, query_fechas)
 
-    df = pd.DataFrame(result,columns=["numIncidencia", "anoIncidencia", "fechaAlta", "horaAlta", "descripcion", "hecho","motivoFinalizacion","resultadoAviso"])
+   
+    
+
+    df = pd.DataFrame(result,columns=["numIncidencia", "anoIncidencia", "fechaAlta", "horaAlta", "hecho", "motivo","resultado", "lugar", "siglaVia", "via", "portal", "coordX", "coordY"])
+    
+     #Añade un filtro de selección múltiple para el motivo de finalización
+    st.subheader("Filtrar por motivo de finalización")
+    motivos = df['motivo'].unique().tolist()
+    motivos_seleccionados = st.multiselect("Selecciona los motivos de finalización:", motivos, default=motivos)
+    df = df[df['motivo'].isin(motivos_seleccionados)]
+
+    #Crea un mapa de incidencias
+    st.subheader("Mapa de incidencias")
+    m = create_incidents_map(df)
+    if m is None:
+        st.info("No hay incidencias con coordenadas para mostrar en el mapa.")
+    else:
+        map_html = m._repr_html_()
+        components.html(map_html, height=600)
+    
     st.dataframe(df)
 
+   
+    st.divider()
     
-    col1, col2 = st.columns(2)
-
-    with col1:
-        actas = df['motivoFinalizacion'].value_counts().reset_index(name='Cantidad')
-        st.write("Cantidad de actas por motivo de finalización:")   
-        st.write(actas)
-    with col2:
-        actas = df['motivoFinalizacion'].value_counts().reset_index(name='Cantidad')
-        st.write("Cantidad de actas por motivo de finalización:")   
-        st.write(actas)
+    
 
     #Variable que almacena los motivos de finalización y su cantidad, ordenados y agrupados por año de incidencia
-    actas_ano = df.groupby(['anoIncidencia', 'motivoFinalizacion']).size().reset_index(name='Cantidad')
-    st.write("Cantidad de actas por año de incidencia y motivo de finalización:")
+    actas_ano = df.groupby(['anoIncidencia', 'motivo']).size().reset_index(name='Cantidad')
+    st.header("Cantidad de actas por año de incidencia y motivo de finalización:")
     st.write(actas_ano)
 
-    #Grafico de barrar de motivo de finalización por año de incidencia, pintando el valor en la barra
-    st.write("Gráfico de barras de motivo de finalización por año de incidencia:")
-    actas = df.groupby(['anoIncidencia', 'motivoFinalizacion']).size().reset_index(name='Cantidad')
-    actas_pivot = actas.pivot(index='anoIncidencia', columns='motivoFinalizacion', values='Cantidad').fillna(0)
-    st.bar_chart(actas_pivot)
+
+    #Tabla con fecha, hora y lugar de cada una de las incidencias con descripción que contiene el texto "vertido ilegal"
+    df_vertido = df[df['hecho'].str.contains('VERTIDO ILEGAL', case=False, na=False)]
+    st.header("Incidencias con descripción que contiene 'VERTIDO ILEGAL':")
+    st.dataframe(df_vertido[['fechaAlta', 'horaAlta', 'lugar', 'hecho']])
+
+
+    
 
     oracle_conn.close_connection(conn)
 
