@@ -9,22 +9,27 @@ import folium
 def create_incidents_map(df):
     """Create a folium map with incident locations."""
     # Filter out rows with missing coordinates
-    #Centra el mapa en las coordenadas 40.326366, -3.768147    
+    #Centrar el mapa en las coordenadas 40.331119, -3.765943  que corresponden a Madrid, España        
     df_map = df.dropna(subset=['coordX', 'coordY'])
     
     if df_map.empty:
         return None
-    
-    # Create map centered on the mean coordinates
-    center_lat = df_map['coordY'].mean()
-    center_lon = df_map['coordX'].mean()
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+    #Crear el mapa centrado en las coordenadas 40.331119, -3.765943
+    m = folium.Map(location=(40.331119, -3.765943), zoom_start=12)
+
+    #Crea una función que devuelve un color en formato string entre ['darkblue', 'green', 'cadetblue', 'lightgreen', 'pink', 'purple', 'white', 'darkgreen', 'lightgray', 'red', 'beige', 'gray', 'darkpurple', 'orange', 'black', 'darkred', 'lightred', 'blue', 'lightblue']
+    def random_color() -> str:
+        import random
+        colors = ['darkblue', 'green', 'cadetblue', 'lightgreen', 'pink', 'purple', 'white', 'darkgreen', 'lightgray', 'red', 'beige', 'gray', 'darkpurple', 'orange', 'black', 'darkred', 'lightred', 'blue', 'lightblue']
+        return random.choice(colors)
+
     
     # Add markers for each incident
     for idx, row in df_map.iterrows():
         folium.Marker(
             location=[row['coordY'], row['coordX']],
-            popup=f"{row['lugar']}<br>{row['hecho']}",
+            popup=f"{row['lugar']}<br>{row['hecho']}",            
+            icon=folium.Icon(color=random_color()),
             tooltip=row['motivo']
         ).add_to(m)
     
